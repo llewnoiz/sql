@@ -170,8 +170,8 @@ BEGIN
 		begin 
 			SET @ColumCount = 1;
 			SET @sql = 'update ' +@TableName			
-			declare @setString nvarchar(max) = ' set'
-			declare @whereString nvarchar(max) = ' where'
+			declare @setStr nvarchar(max) = ' set'
+			declare @whereStr nvarchar(max) = ' where'
 			declare @tmpOldVal nvarchar(max) ='';
 			declare @tmpNewVal nvarchar(max) ='';
 
@@ -195,13 +195,13 @@ BEGIN
 
 				if @tmpType in ('char','varchar','nvarchar','text') 
 				begin
-					set @setString = @setString +' '+ @tmpName + '=' +'''' +@tmpNewVal +'''' +',' 
-					set @whereString = @whereString +' '+ @tmpName + '=' +'''' +@tmpOldVal +'''' +' and'
+					set @setStr = @setStr +' '+ @tmpName + '=' +'''' +@tmpNewVal +'''' +',' 
+					set @whereStr = @whereStr +' '+ @tmpName + '=' +'''' +@tmpOldVal +'''' +' and'
 				end
 				else					
 				begin
-					set @setString = @setString +' '+ @tmpName + '=' +@tmpNewVal  +',' 
-					set @whereString = @whereString +' '+ @tmpName + '=' + @tmpOldVal + ' and'
+					set @setStr = @setStr +' '+ @tmpName + '=' +@tmpNewVal  +',' 
+					set @whereStr = @whereStr +' '+ @tmpName + '=' + @tmpOldVal + ' and'
 				end
 				
 				set @ColumCount = @ColumCount + 1;
@@ -209,9 +209,9 @@ BEGIN
 			end;
 
 			-- make dynamic sql					
-			SET @setString = LEFT(@setString, LEN(@setString) - 1);
-			SET @whereString = LEFT(@whereString, LEN(@whereString) - 3);
-			SET @sql = @sql + @setString + @whereString;			
+			SET @setStr = LEFT(@setStr, LEN(@setStr) - 1);
+			SET @whereStr = LEFT(@whereStr, LEN(@whereStr) - 3);
+			SET @sql = @sql + @setStr + @whereStr;			
 
 			SET @sql =@sql + ';';
 			-- insert history db query		
