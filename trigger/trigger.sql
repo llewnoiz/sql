@@ -155,7 +155,72 @@ BEGIN
     IF EXISTS (SELECT * FROM INSERTED) AND EXISTS (SELECT * FROM DELETED)
     BEGIN
 
-		select * from inserted;
-		select * from deleted;
+		select distinct *, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn into #up_deleted from deleted;
+		select distinct *, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn into #up_inserted from inserted;
+		
+		select @insertedMax = count(*) from #up_deleted;
+
+		SELECT ORDINAL_POSITION as id , column_name as name, DATA_TYPE as type  into #tempUpColumnTables
+		FROM information_schema.columns
+		WHERE table_name = @TableName;
+
+
+		select @max = count(*) from #tempUpColumnTables;
+
+
+		while @insertedCount <= @insertedMax
+		begin 
+			SET @count = 1;
+			SET @sql = 'update ' +@TableName			
+			declare @setString nvarchar(max) = ' set'
+			declare @whereString nvarchar(max) = ' where'
+			declare @tmpOldVal nvarchar(max) ='';
+			declare @tmpNewVal nvarchar(max) ='';
+
+			while @count <= @max
+			begin
+							
+				set @tmpName = ( select name from #tempUpColumnTables where id = @count );		
+				set @tmpType = (select type from #tempUpColumnTables where id = @count);
+				
+				set @tmpQuery = N'select @result = ' +@tmpName+ ' from #up_deleted where rn =' + CAST(@insertedCount AS nvarchar);
+				set @param = N'@result nvarchar(max) OUTPUT';						
+				set @tmpOldVal = '';
+				EXEC sp_executesql @tmpQuery, @param, @result=@tmpOldVal OUTPUT;
+
+
+				set @tmpQuery = N'select @result = ' +@tmpName+ ' from #up_inserted where rn =' + CAST(@insertedCount AS nvarchar);
+				set @param = N'@result nvarchar(max) OUTPUT';						
+				set @tmpNewVal = '';
+				EXEC sp_executesql @tmpQuery, @param, @result=@tmpNewVal OUTPUT;
+
+
+				if @tmpType in ('char','varchar','nvarchar','text') 
+				begin
+					set @setString = @setString +' '+ @tmpName + '=' +'''' +@tmpNewVal +'''' +',' 
+					set @whereString = @whereString +' '+ @tmpName + '=' +'''' +@tmpOldVal +'''' +' and'
+				end
+				else					
+				begin
+					set @setString = @setString +' '+ @tmpName + '=' +@tmpNewVal  +',' 
+					set @whereString = @whereString +' '+ @tmpName + '=' + @tmpOldVal + ' and'
+				end
+				
+				set @count = @count + 1;
+				
+			end;
+
+			-- make dynamic sql					
+			SET @setString = LEFT(@setString, LEN(@setString) - 1);
+			SET @whereString = LEFT(@whereString, LEN(@whereString) - 3);
+			SET @sql = @sql + @setString + @whereString;			
+
+			SET @sql =@sql + ';';
+			-- insert history db query		
+			insert into history values(1,@sql,3);
+			SET @insertedCount = @insertedCount + 1;
+			
+		end
+
     END;
 END
