@@ -1,15 +1,3 @@
-USE [TEST]
-GO
-/****** Object:  Trigger [dbo].[trigger_test_history]    Script Date: 2023-08-17 오후 2:44:21 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
--- =============================================
--- Author:		<Author,,Name>
--- Create date: <Create Date,,>
--- Description:	<Description,,>
--- =============================================
 ALTER TRIGGER [dbo].[trigger_test_history]
    ON  [dbo].[test]
    AFTER INSERT, UPDATE, DELETE
@@ -74,12 +62,20 @@ BEGIN
 							
 				set @tmpName = ( select name from #tempColumnTables where id = @count );		
 				set @tmpType = (select type from #tempColumnTables where id = @count);
-				set @tmpQuery = N'select @result = CASE  when ISNUMERIC('+@tmpName+') = 1 then '+@tmpName+' else '''+@tmpName+''' end from #rp_inserted where rn =' + CAST(@insertedCount AS nvarchar);
+				set @tmpQuery = N'select @result = '+@tmpName+' from #rp_inserted where rn =' + CAST(@insertedCount AS nvarchar);
 				set @param = N'@result nvarchar(max) OUTPUT';						
 				set @tmpVal = '';
 				EXEC sp_executesql @tmpQuery, @param, @result=@tmpVal OUTPUT;
 
-				set @values = @values + @tmpVal + ','
+				if @tmpType in ('char','varchar','nvarchar','text') 
+				begin
+					set @values = @values + '''' +@tmpVal + '''' + ','
+				end
+				else					
+				begin
+					set @values = @values + @tmpVal + ','
+				end
+
 				set @count = @count + 1;
 				
 			end;
@@ -122,17 +118,25 @@ BEGIN
 							
 				set @tmpName = ( select name from #tempDelColumnTables where id = @count );		
 				set @tmpType = (select type from #tempDelColumnTables where id = @count);
-				set @tmpQuery = N'select @result = CASE  when ISNUMERIC('+@tmpName+') = 1 then '+@tmpName+' else ' +@tmpName+ ' end from #rp_deleted where rn =' + CAST(@insertedCount AS nvarchar);
+				set @tmpQuery = N'select @result = ' +@tmpName+ ' from #rp_deleted where rn =' + CAST(@insertedCount AS nvarchar);
 				set @param = N'@result nvarchar(max) OUTPUT';						
 				set @tmpVal = '';
 				EXEC sp_executesql @tmpQuery, @param, @result=@tmpVal OUTPUT;
 
-				set @values = @values +' '+ @tmpName + '=' + @tmpVal + ' and'
+
+				if @tmpType in ('char','varchar','nvarchar','text') 
+				begin
+					set @values = @values +' '+ @tmpName + '=' +'''' +@tmpVal +'''' +' and'
+				end
+				else					
+				begin
+					set @values = @values +' '+ @tmpName + '=' + @tmpVal + ' and'
+				end
+				
 				set @count = @count + 1;
 				
 			end;
-			--SET @values = LEFT(@values, LEN(@values) - 3);
-			
+
 			-- make dynamic sql		
 			SET @sql = @sql +@values;
 			SET @values = ''
