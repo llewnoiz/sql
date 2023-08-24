@@ -12,7 +12,6 @@ BEGIN
 	declare @RowCount int
 	declare @RowCountMax int
 	
-
 	declare @result nvarchar(max)
 	declare @tmpName nvarchar(max) 
 	declare @tmpType nvarchar(max) 							
